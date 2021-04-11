@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Atmosphere Chat</title>
+    <!-- Dependencies -->
+    <script type="application/javascript" src="webjars/jquery/2.0.3/jquery.js"></script>
+    <script type="application/javascript" src="webjars/uuid.js/3.6.1/dist/uuid.core.js"></script>
+    <!-- Application -->
+    <script type="text/javascript" src="javascript/atmosphere.js"></script>
+    <script type="text/javascript" src="javascript/chatClient.js"></script>
+    <style>
+        * {font-family: tahoma; font-size: 12px; padding: 0px; margin: 0px;}
+        p {line-height: 18px;}
+        div {width: 500px; margin-left: auto; margin-right: auto;}
+        .bigdiv {padding: 5px; border-radius: 5px; border: 1px solid #CCC; margin-top: 10px;}
+        .closable {display: inline-block; width: auto}
+        #content {background: #ddd;}
+        #header {background: #C0D890;}
+        #warning {background: #f5deb3;}
+        #input {border-radius: 2px; border: 1px solid #ccc; margin-top: 10px; padding: 5px; width: 400px;}
+        #status {width: 88px; display: block; float: left; margin-top: 15px;}
+        a.x-button {text-decoration: none; color: black; float: right}
+    </style>
+</head>
+<body>
+
+<div id="header" class="bigdiv"><h3>Atmosphere Chat. Default transport is WebSocket, fallback is long-polling</h3></div>
+<div id="warning" class="bigdiv" hidden="hidden"><div id="warning-msg" class="closable">This is a sample warning</div><a class="x-button" id="close-warning" href="Javascript:hideWarning()">&#x2716</a></div>
+<div id="content" class="bigdiv"></div>
+<div>
+    <span id="status">Connecting...</span>
+    <input type="text" id="input" disabled="disabled"/>
+</div>
+</body>
+</html>

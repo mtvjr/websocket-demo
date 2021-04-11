@@ -1,21 +1,39 @@
 package dev.mtvjr.websocket_demo.server;
 
-import dev.mtvjr.websocket_demo.codec.TextMessageCodec;
-import dev.mtvjr.websocket_demo.messages.TextMessage;
-import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Message;
-import org.atmosphere.config.service.Ready;
+import dev.mtvjr.websocket_demo.codec.JoinRoomRequestDecoder;
+import dev.mtvjr.websocket_demo.codec.TestMessageDecoder;
+import dev.mtvjr.websocket_demo.codec.MessageEncoder;
+import dev.mtvjr.websocket_demo.messages.*;
+import org.atmosphere.config.managed.Encoder;
+import org.atmosphere.config.service.*;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.io.IOException;
+import java.util.UUID;
 
 @ManagedService(path="/chat")
 public class ChatRoom {
+    /// Enables logging
     private final Logger logger = LoggerFactory.getLogger(ChatRoom.class);
+
+    /// Tracks the state of the room
+    private final RoomState state = new RoomState();
+
+    /// Encodes messages for custom send functions
+    /// Not required for @Message handling
+    private final Encoder<MessageBase, String> encoder = new MessageEncoder();
+
+    @Inject
+    BroadcasterFactory broadcasterFactory;
+
+    @Inject
+    AtmosphereResourceFactory resourceFactory;
 
     @Ready
     public void onReady(final AtmosphereResource r) {
@@ -31,9 +49,55 @@ public class ChatRoom {
         }
     }
 
-    @Message(encoders = TextMessageCodec.class, decoders = TextMessageCodec.class)
-    public TextMessage onMessage(TextMessage textMessage) throws IOException {
-        logger.info("{} just sent {}", textMessage.getAuthor(), textMessage.getMessage());
+    // Messages default to sending to everyone in the broadcast
+    // Therefore, we need to specify that only the recipient gets the message
+    @DeliverTo(DeliverTo.DELIVER_TO.RESOURCE)
+    @Message(encoders = MessageEncoder.class, decoders = JoinRoomRequestDecoder.class)
+    public MessageResponse onJoinRequest(JoinRoomRequest request) {
+        String user = request.getUsername() + " (" + request.getSender() + ')';
+        logger.info("{} attempted to register.", user);
+        if (state.doesUserExist(request.getSender(), request.getUsername())) {
+            logger.warn("{} attempted to register twice.", user);
+            return new MessageResponse(request, ResponseCode.DENIED, "User already exists");
+        }
+        logger.info("{} successfully registered.", user);
+        state.addUser(request.getSender(), request.getUsername());
+        return new MessageResponse(request, ResponseCode.OK);
+    }
+
+    // Messages default to sending to everyone in the broadcast
+    // Therefore, @DeliverTo(DeliverTo.DELIVER_TO.BROADCAST) is not needed
+    @Message(encoders = MessageEncoder.class, decoders = TestMessageDecoder.class)
+    public TextMessage onTextMessage(TextMessage textMessage) throws IOException {
+        String author = state.getUsername(textMessage.getSender());
+        if (author == null) {
+            logger.warn("Unable to find user with UUID {}", textMessage.getSender());
+            state.dump(logger);
+            // Unable to find user, send NACK back to sender
+            MessageResponse response = new MessageResponse(textMessage, ResponseCode.FORBIDDEN, "You are not registered");
+            if (!sendToUser(textMessage.getSender(), response)) {
+                logger.warn("Unable to send TextMessageResponse to {}", textMessage.getSender());
+            }
+            return null;
+        }
+        textMessage.setAuthor(author);
         return textMessage;
+    }
+
+    /**
+     * Send a message to a given user
+     * @param uuid - The sender ID of the user to receive the message.
+     * @param message - The message for that user to receive
+     * @return True if the message was sent, false otherwise
+     */
+    public boolean sendToUser(UUID uuid, MessageBase message) {
+        AtmosphereResource resource = resourceFactory.find(uuid.toString());
+        if (resource == null) {
+            logger.warn("Unable to find resource for user {}", uuid);
+            return false;
+        }
+        String json = encoder.encode(message);
+        broadcasterFactory.lookup("/chat").broadcast(json, resource);
+        return true;
     }
 }
