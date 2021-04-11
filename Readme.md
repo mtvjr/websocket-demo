@@ -36,8 +36,8 @@ it uses the websocket to delete the message.
 ### Rules:
 1. Message should not be deleted until commanded from the server.
 3. The server should filter out bad requests:
-  - Requests from non-moderators
-  - Requests relating to invalid messages.
+    * Requests from non-moderators
+    * Requests relating to invalid messages.
 4. If the server filters a request, a response must be sent to the commanding user.
 5. If a not "OK" response is received, a warning should be displayed to the user.
 6. A deleted message should be deleted from all connected clients.
