@@ -1,4 +1,4 @@
-#Websocket Demo
+# Websocket Demo
 
 This is a chat application showcasing how to use websockets.
 
