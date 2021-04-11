@@ -1,3 +1,5 @@
+sendDelete = null;
+
 $(function () {
     "use strict";
 
@@ -5,11 +7,12 @@ $(function () {
     let content = $('#content');
     let input = $('#input');
     let status = $('#status');
-    let warning = $('#warning')
-    let warningMsg = $('#warning-msg')
+    let warning = $('#warning');
+    let warningMsg = $('#warning-msg');
     let username = null;
     let loggedIn = false;
     let attemptedLogin = false;
+    let moderator = false;
     let socket = $.atmosphere;
     let subSocket;
     let transport = 'websocket';
@@ -127,6 +130,7 @@ $(function () {
                 attemptedLogin = true;
                 // Prevent sending additional messages until we are logged in.
                 input.attr('disabled', 'disabled');
+                status.text('Joining Chatroom');
             } else {
                 // We are logged in, send a real message
                 msg = createMessage({
@@ -139,11 +143,26 @@ $(function () {
         }
     });
 
-    function addMessage(uuid, username, message, color, datetime) {
-        content.append(`<p id="${uuid}"><span style="color: ${color}">${username}</span> @ 
-            ${(datetime.getHours() < 10 ? '0' + datetime.getHours() : datetime.getHours())}:
-            ${(datetime.getMinutes() < 10 ? '0' + datetime.getMinutes() : datetime.getMinutes())}
-            : ${message}</p>`);
+    function addTextMessage(uuid, username, message, color, datetime) {
+        let hours = datetime.getHours().toString().padStart( 2, '0');
+        let minutes = datetime.getMinutes().toString().padStart(2, '0');
+        let timestamp = hours + ':' + minutes;
+        let deleteBtn = `
+            <div class="col-1">
+                <button type="button" class="close" onclick="sendDelete('${uuid}')">&times;</button>
+            </div> `;
+        let row = `
+            <div class="row" id="${uuid}">
+                <div class="col">
+                    <p><span style="color: ${color}">${username}</span> @ ${timestamp}: ${message}</p>
+                </div>
+                ${moderator ? deleteBtn : ""}
+            </div>`;
+        content.append(row);
+    }
+
+    function removeTextMessage(uuid) {
+        $(`#${uuid}`).remove();
     }
 
     addMessageHandler("TextMessage", msg => {
@@ -151,7 +170,7 @@ $(function () {
 
         let me = msg.author === username;
         let date = typeof(msg.time) == 'string' ? parseInt(msg.time) : msg.time;
-        addMessage(msg.uuid, msg.author, msg.message, me ? 'blue' : 'black', new Date(date));
+        addTextMessage(msg.uuid, msg.author, msg.message, me ? 'blue' : 'black', new Date(date));
     });
 
     addMessageHandler("TextMessageResponse", msg => {
@@ -160,7 +179,7 @@ $(function () {
         }
     });
 
-    addMessageHandler("JoinRoomRequestResponse", msg => {
+    addMessageHandler("JoinRoomResponse", msg => {
         // No matter what, clear attempted login
         attemptedLogin = false;
         input.removeAttr('disabled').focus();
@@ -171,9 +190,33 @@ $(function () {
             return;
         }
 
-        status.text(username + ': ').css('color', 'blue');
+        moderator = msg.isModerator;
+        let color = 'blue'
+        if (moderator) {
+            color = 'green';
+        }
+        status.text(username + ':').css('color', color);
         loggedIn = true;
     });
+
+    sendDelete = function (uuid) {
+        /**
+         * Task: Add the ability for moderators to delete messages
+         * Rules:
+         * 1. Message should not be deleted until commanded from the server.
+         * 3. The server should filter out bad requests:
+         *    3a. Requests from non-moderators
+         *    3b. Requests relating to invalid messages.
+         * 4. If the server filters a request, a response must be sent to the commanding user.
+         * 5. If a not "OK" response is received, a warning should be displayed to the user.
+         * 6. A deleted message should be deleted from all connected clients.
+         *
+         * Client Tips:
+         * 1. Use removeTextMessage(uuid) to delete a given message from the UI.
+         * 2. Use addMessageHandler(MessageType, callback) to handle your new messages.
+         */
+        warn("Implement this!");
+    }
 });
 
 function hideWarning() {

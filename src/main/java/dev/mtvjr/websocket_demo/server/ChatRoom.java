@@ -1,6 +1,6 @@
 package dev.mtvjr.websocket_demo.server;
 
-import dev.mtvjr.websocket_demo.codec.JoinRoomRequestDecoder;
+import dev.mtvjr.websocket_demo.codec.JoinRoomMessageDecoder;
 import dev.mtvjr.websocket_demo.codec.TestMessageDecoder;
 import dev.mtvjr.websocket_demo.codec.MessageEncoder;
 import dev.mtvjr.websocket_demo.messages.*;
@@ -47,22 +47,30 @@ public class ChatRoom {
         } else if (event.isClosedByClient()) {
             logger.info("Browser {} closed the connection", event.getResource().uuid());
         }
+
+        // Either way, remove the user
+        state.removeUser(UUID.fromString(event.getResource().uuid()));
     }
 
     // Messages default to sending to everyone in the broadcast
     // Therefore, we need to specify that only the recipient gets the message
     @DeliverTo(DeliverTo.DELIVER_TO.RESOURCE)
-    @Message(encoders = MessageEncoder.class, decoders = JoinRoomRequestDecoder.class)
-    public MessageResponse onJoinRequest(JoinRoomRequest request) {
+    @Message(encoders = MessageEncoder.class, decoders = JoinRoomMessageDecoder.class)
+    public MessageResponse onJoinRequest(JoinRoom request) {
         String user = request.getUsername() + " (" + request.getSender() + ')';
         logger.info("{} attempted to register.", user);
         if (state.doesUserExist(request.getSender(), request.getUsername())) {
             logger.warn("{} attempted to register twice.", user);
-            return new MessageResponse(request, ResponseCode.DENIED, "User already exists");
+            JoinRoomResponse response = new JoinRoomResponse(request, ResponseCode.DENIED, "User already exists");
+            response.setIsModerator(false);
+            return response;
         }
         logger.info("{} successfully registered.", user);
-        state.addUser(request.getSender(), request.getUsername());
-        return new MessageResponse(request, ResponseCode.OK);
+        boolean isModerator = request.getUsername().equals("Moderator");
+        state.addUser(new ChatroomUser(request.getSender(), request.getUsername(), isModerator));
+        JoinRoomResponse response = new JoinRoomResponse(request, ResponseCode.OK);
+        response.setIsModerator(isModerator);
+        return response;
     }
 
     // Messages default to sending to everyone in the broadcast
@@ -81,6 +89,7 @@ public class ChatRoom {
             return null;
         }
         textMessage.setAuthor(author);
+        state.addTextMessage(textMessage);
         return textMessage;
     }
 

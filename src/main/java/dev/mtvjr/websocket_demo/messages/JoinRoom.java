@@ -5,11 +5,11 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class JoinRoomRequest extends MessageBase {
+public class JoinRoom extends MessageBase {
     private String username;
 
     @Override
     public String getMessageType() {
-        return "JoinRoomRequest";
+        return "JoinRoom";
     }
 }
