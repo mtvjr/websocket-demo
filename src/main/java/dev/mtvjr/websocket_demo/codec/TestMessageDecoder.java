@@ -3,7 +3,6 @@ package dev.mtvjr.websocket_demo.codec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.mtvjr.websocket_demo.messages.TextMessage;
 import org.atmosphere.config.managed.Decoder;
-import org.atmosphere.config.managed.Encoder;
 
 import java.io.IOException;
 

@@ -101,7 +101,7 @@ $(function () {
         try {
             message = jQuery.parseJSON(json);
         } catch (e) {
-            console.log('This doesn\'t look like a valid JSON: ', json.data);
+            console.log('This doesn\'t look like a valid JSON: ', json);
             return;
         }
 
